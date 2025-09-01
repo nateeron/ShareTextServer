@@ -1,6 +1,7 @@
 
 git pull origin master
 
+pyinstaller --onefile client_gui.py
 # Real-time Collaborative Text Editor
 
 A Python application that provides real-time collaborative text editing capabilities with both GUI and API interfaces. Multiple users can edit the same text document simultaneously and see changes in real-time.
