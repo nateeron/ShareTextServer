@@ -62,7 +62,7 @@ class CollaborativeTextEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("Collaborative Text Editor")
-        self.root.geometry("800x700")
+        self.root.geometry("350x450")
         
         # Server configuration
         self.server_url = Config.get_websocket_url()
@@ -79,18 +79,45 @@ class CollaborativeTextEditor:
         # Appearance settings
         self.bg_color = "white"
         self.text_color = "black"
-        self.font_size = 12
+        self.font_size = 9
         self.font_family = "Consolas"
         
         # Load saved preferences
         self.load_preferences()
         
         # GUI elements
+        self.setup_menu()
         self.setup_gui()
         
         # Start connection
         self.connect_to_server()
         Config.print_config()
+    
+    def setup_menu(self):
+        """Setup the menu bar"""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Save to File", command=self.save_to_file)
+        file_menu.add_command(label="Load from File", command=self.load_from_file)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+        
+        # Settings menu
+        settings_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Settings", menu=settings_menu)
+        settings_menu.add_command(label="Appearance...", command=self.open_settings_popup)
+        settings_menu.add_separator()
+        settings_menu.add_command(label="Set User ID", command=self.set_user_id)
+        
+        # View menu
+        view_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="View", menu=view_menu)
+        view_menu.add_command(label="Reconnect", command=self.reconnect)
+    
     def setup_gui(self):
         """Setup the GUI components"""
         # Main frame
@@ -101,7 +128,7 @@ class CollaborativeTextEditor:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(3, weight=1)  # Changed from row 2 to row 3 to accommodate settings
+        main_frame.rowconfigure(2, weight=1)  # Back to row 2 since settings are moved to popup
         
         # Connection status
         status_frame = ttk.Frame(main_frame)
@@ -124,51 +151,9 @@ class CollaborativeTextEditor:
         
         ttk.Button(user_frame, text="Set User ID", command=self.set_user_id).pack(side=tk.LEFT)
         
-        # Appearance settings frame
-        settings_frame = ttk.LabelFrame(main_frame, text="Appearance Settings", padding="5")
-        settings_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
-        
-        # Color settings
-        color_frame = ttk.Frame(settings_frame)
-        color_frame.pack(fill=tk.X, pady=(0, 5))
-        
-        ttk.Button(color_frame, text="Background Color", command=self.choose_bg_color).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(color_frame, text="Text Color", command=self.choose_text_color).pack(side=tk.LEFT, padx=(0, 10))
-        
-        # Font size settings
-        font_frame = ttk.Frame(settings_frame)
-        font_frame.pack(fill=tk.X)
-        
-        ttk.Label(font_frame, text="Font Size:").pack(side=tk.LEFT)
-        self.font_size_var = tk.IntVar(value=self.font_size)
-        font_spinbox = ttk.Spinbox(
-            font_frame, 
-            from_=8, 
-            to=32, 
-            textvariable=self.font_size_var,
-            width=5,
-            command=self.update_font_size
-        )
-        font_spinbox.pack(side=tk.LEFT, padx=(5, 10))
-        
-        # Font family dropdown
-        ttk.Label(font_frame, text="Font:").pack(side=tk.LEFT)
-        self.font_family_var = tk.StringVar(value=self.font_family)
-        font_combo = ttk.Combobox(
-            font_frame,
-            textvariable=self.font_family_var,
-            values=["Consolas", "Arial", "Times New Roman", "Courier New", "Verdana", "Georgia"],
-            width=12,
-            state="readonly"
-        )
-        font_combo.pack(side=tk.LEFT, padx=(5, 10))
-        font_combo.bind('<<ComboboxSelected>>', self.update_font_family)
-        
-        ttk.Button(font_frame, text="Apply", command=self.apply_appearance_settings).pack(side=tk.RIGHT)
-        
         # Text area
         text_frame = ttk.Frame(main_frame)
-        text_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
+        text_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
         text_frame.columnconfigure(0, weight=1)
         text_frame.rowconfigure(0, weight=1)
         
@@ -190,12 +175,11 @@ class CollaborativeTextEditor:
         # Bind text changes
         self.text_widget.bind('<KeyRelease>', self.on_text_change)
         
-        # Buttons frame
+        # Buttons frame (simplified since main actions are now in menu)
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 0))
+        button_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 0))
         
-        ttk.Button(button_frame, text="Save to File", command=self.save_to_file).pack(side=tk.LEFT)
-        ttk.Button(button_frame, text="Load from File", command=self.load_from_file).pack(side=tk.LEFT, padx=(5, 0))
+        # Keep only reconnect button in main UI for quick access
         ttk.Button(button_frame, text="Reconnect", command=self.reconnect).pack(side=tk.RIGHT)
         
         # Configure text tags for highlighting
@@ -211,6 +195,179 @@ class CollaborativeTextEditor:
         else:
             messagebox.showerror("Error", "User ID cannot be empty")
     
+    def open_settings_popup(self):
+        """Open the settings popup window"""
+        # Create popup window
+        settings_window = tk.Toplevel(self.root)
+        settings_window.title("Appearance Settings")
+        settings_window.geometry("300x600")
+        settings_window.resizable(False, False)
+        
+        # Center the window
+        settings_window.transient(self.root)
+        settings_window.grab_set()  # Make it modal
+        
+        # Main frame
+        main_frame = ttk.Frame(settings_window, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Color Settings Section
+        color_section = ttk.LabelFrame(main_frame, text="Colors", padding="10")
+        color_section.pack(fill=tk.X, pady=(0, 15))
+        
+        # Background color
+        bg_frame = ttk.Frame(color_section)
+        bg_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(bg_frame, text="Background Color:").pack(side=tk.LEFT)
+        self.bg_color_preview = tk.Label(
+            bg_frame, 
+            text="   ", 
+            bg=self.bg_color, 
+            relief="solid", 
+            borderwidth=1,
+            width=3
+        )
+        self.bg_color_preview.pack(side=tk.LEFT, padx=(10, 5))
+        ttk.Button(bg_frame, text="Change", command=self.choose_bg_color_popup).pack(side=tk.LEFT)
+        
+        # Text color
+        text_frame = ttk.Frame(color_section)
+        text_frame.pack(fill=tk.X)
+        
+        ttk.Label(text_frame, text="Text Color:").pack(side=tk.LEFT)
+        self.text_color_preview = tk.Label(
+            text_frame, 
+            text="   ", 
+            bg=self.text_color, 
+            relief="solid", 
+            borderwidth=1,
+            width=3
+        )
+        self.text_color_preview.pack(side=tk.LEFT, padx=(10, 5))
+        ttk.Button(text_frame, text="Change", command=self.choose_text_color_popup).pack(side=tk.LEFT)
+        
+        # Font Settings Section
+        font_section = ttk.LabelFrame(main_frame, text="Font", padding="10")
+        font_section.pack(fill=tk.X, pady=(0, 15))
+        
+        # Font family
+        family_frame = ttk.Frame(font_section)
+        family_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(family_frame, text="Font Family:").pack(side=tk.LEFT)
+        self.font_family_var = tk.StringVar(value=self.font_family)
+        font_combo = ttk.Combobox(
+            family_frame,
+            textvariable=self.font_family_var,
+            values=["Consolas", "Arial", "Times New Roman", "Courier New", "Verdana", "Georgia", "Helvetica"],
+            width=15,
+            state="readonly"
+        )
+        font_combo.pack(side=tk.LEFT, padx=(10, 0))
+        font_combo.bind('<<ComboboxSelected>>', self.update_font_family_popup)
+        
+        # Font size
+        size_frame = ttk.Frame(font_section)
+        size_frame.pack(fill=tk.X)
+        
+        ttk.Label(size_frame, text="Font Size:").pack(side=tk.LEFT)
+        self.font_size_var = tk.IntVar(value=self.font_size)
+        font_spinbox = ttk.Spinbox(
+            size_frame, 
+            from_=8, 
+            to=48, 
+            textvariable=self.font_size_var,
+            width=8,
+            command=self.update_font_size_popup
+        )
+        font_spinbox.pack(side=tk.LEFT, padx=(10, 0))
+        
+        # Preview Section
+        preview_section = ttk.LabelFrame(main_frame, text="Preview", padding="10")
+        preview_section.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        
+        self.preview_text = tk.Text(
+            preview_section,
+            height=4,
+            font=(self.font_family, self.font_size),
+            bg=self.bg_color,
+            fg=self.text_color,
+            wrap=tk.WORD
+        )
+        self.preview_text.pack(fill=tk.BOTH, expand=True)
+        self.preview_text.insert("1.0", "This is a preview of your text appearance.\nYou can see how your changes will look here.")
+        self.preview_text.config(state=tk.DISABLED)
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X)
+        
+        ttk.Button(button_frame, text="Apply", command=lambda: self.apply_settings_popup(settings_window)).pack(side=tk.RIGHT, padx=(5, 0))
+        ttk.Button(button_frame, text="Cancel", command=settings_window.destroy).pack(side=tk.RIGHT)
+        ttk.Button(button_frame, text="Reset to Defaults", command=self.reset_to_defaults).pack(side=tk.LEFT)
+    
+    def choose_bg_color_popup(self):
+        """Choose background color in popup"""
+        color = colorchooser.askcolor(title="Choose Background Color", color=self.bg_color)
+        if color[1]:  # color[1] contains the hex color string
+            self.bg_color = color[1]
+            self.bg_color_preview.config(bg=self.bg_color)
+            self.update_preview()
+    
+    def choose_text_color_popup(self):
+        """Choose text color in popup"""
+        color = colorchooser.askcolor(title="Choose Text Color", color=self.text_color)
+        if color[1]:  # color[1] contains the hex color string
+            self.text_color = color[1]
+            self.text_color_preview.config(bg=self.text_color)
+            self.update_preview()
+    
+    def update_font_size_popup(self):
+        """Update font size from popup spinbox"""
+        self.font_size = self.font_size_var.get()
+        self.update_preview()
+    
+    def update_font_family_popup(self, event=None):
+        """Update font family from popup combobox"""
+        self.font_family = self.font_family_var.get()
+        self.update_preview()
+    
+    def update_preview(self):
+        """Update the preview text widget in the popup"""
+        if hasattr(self, 'preview_text'):
+            self.preview_text.config(
+                font=(self.font_family, self.font_size),
+                bg=self.bg_color,
+                fg=self.text_color
+            )
+    
+    def apply_settings_popup(self, window):
+        """Apply settings from popup and close window"""
+        self.apply_appearance_settings()
+        window.destroy()
+        messagebox.showinfo("Settings", "Appearance settings applied successfully!")
+    
+    def reset_to_defaults(self):
+        """Reset appearance settings to defaults"""
+        self.bg_color = "white"
+        self.text_color = "black"
+        self.font_size = 12
+        self.font_family = "Consolas"
+        
+        # Update popup controls if they exist
+        if hasattr(self, 'bg_color_preview'):
+            self.bg_color_preview.config(bg=self.bg_color)
+        if hasattr(self, 'text_color_preview'):
+            self.text_color_preview.config(bg=self.text_color)
+        if hasattr(self, 'font_size_var'):
+            self.font_size_var.set(self.font_size)
+        if hasattr(self, 'font_family_var'):
+            self.font_family_var.set(self.font_family)
+        
+        self.update_preview()
+    
+    # Keep original methods for backward compatibility
     def choose_bg_color(self):
         """Choose background color"""
         color = colorchooser.askcolor(title="Choose Background Color", color=self.bg_color)
