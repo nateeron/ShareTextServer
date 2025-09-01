@@ -66,16 +66,36 @@ pip install -r ~/ShareTextServer/requirements.txt
 
 
    ```bash
-  sudo apt update && sudo apt install -y git && git clone https://github.com/nateeron/ShareTextServer.git ShareText && sudo apt update && echo y | apt install python3.13-venv && sudo apt update && sudo apt upgrade -y && python3 -m venv /root/venv && source /root/venv/bin/activate && pip install --upgrade pip && pip install -r ShareText/requirements.txt && echo -e "[Unit]\nDescription=ShareText Realtime Server\nAfter=network.target\n\n[Service]\nUser=sharetext\nWorkingDirectory=/home/sharetext/ShareTextServer\nExecStart=/home/sharetext/ShareTextServer/venv/bin/python3 /home/sharetext/ShareTextServer/server.py\nRestart=always\nEnvironment=\"PYTHONUNBUFFERED=1\"\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/sharetext.service && sudo systemctl daemon-reload && sudo systemctl enable sharetext.service && sudo systemctl start sharetext.service && sudo systemctl status sharetext.service && sudo ufw allow 1133 && sudo journalctl -u sharetext.service -n 50
+  sudo apt update && sudo apt install -y git && git clone https://github.com/nateeron/ShareTextServer.git ShareText && 
+  sudo apt update && echo y | apt install python3.13-venv && sudo apt update && sudo apt upgrade -y && python3 -m venv /root/venv && sudo apt install wine -y && source /root/venv/bin/activate && pip install --upgrade pip 
+  
+  &&  pip install -r ShareText/requirements.txt && echo -e "[Unit]\nDescription=ShareText Realtime Server\nAfter=network.target\n\n[Service]\nUser=root\nWorkingDirectory=/root/ShareText\nExecStart=/root/venv/bin/python3 /root/ShareText/server.py\nRestart=always\nEnvironment=\"PYTHONUNBUFFERED=1\"\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/sharetext.service && sudo systemctl daemon-reload && sudo systemctl enable sharetext.service && sudo systemctl start sharetext.service && sudo systemctl status sharetext.service && sudo ufw allow 1133 && sudo journalctl -u sharetext.service -n 50
    ```
 1. **Install Python Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-  
 
-2. **Clone or Download the Files**:
+sudo systemctl daemon-reload && sudo systemctl enable sharetext.service && sudo systemctl start sharetext.service && sudo systemctl status sharetext.service
+
+nano /etc/systemd/system/sharetext.service
+
+[Unit]
+Description=ShareText Realtime Server
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/ShareText
+ExecStart=/root/venv/bin/python3 /root/ShareText/server.py
+Restart=always
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target
+
+1. **Clone or Download the Files**:
    - `server.py` - FastAPI server with WebSocket support
    - `client_gui.py` - Tkinter GUI client
    - `client_cli.py` - Command-line client
@@ -83,7 +103,7 @@ pip install -r ~/ShareTextServer/requirements.txt
    - `setup_env.py` - Environment setup script
    - `README.md` - This documentation
 
-3. **Configure Environment (Optional)**:
+2. **Configure Environment (Optional)**:
    ```bash
    # Run the setup script to create a .env file
    python setup_env.py

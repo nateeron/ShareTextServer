@@ -13,7 +13,7 @@ Features:
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox, simpledialog, colorchooser
 import asyncio
 import json
 import threading
@@ -62,7 +62,7 @@ class CollaborativeTextEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("Collaborative Text Editor")
-        self.root.geometry("800x600")
+        self.root.geometry("800x700")
         
         # Server configuration
         self.server_url = Config.get_websocket_url()
@@ -75,6 +75,15 @@ class CollaborativeTextEditor:
         self.current_text = ""
         self.last_sent_text = ""
         self.is_updating_from_server = False
+        
+        # Appearance settings
+        self.bg_color = "white"
+        self.text_color = "black"
+        self.font_size = 12
+        self.font_family = "Consolas"
+        
+        # Load saved preferences
+        self.load_preferences()
         
         # GUI elements
         self.setup_gui()
@@ -92,7 +101,7 @@ class CollaborativeTextEditor:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(2, weight=1)
+        main_frame.rowconfigure(3, weight=1)  # Changed from row 2 to row 3 to accommodate settings
         
         # Connection status
         status_frame = ttk.Frame(main_frame)
@@ -115,9 +124,51 @@ class CollaborativeTextEditor:
         
         ttk.Button(user_frame, text="Set User ID", command=self.set_user_id).pack(side=tk.LEFT)
         
+        # Appearance settings frame
+        settings_frame = ttk.LabelFrame(main_frame, text="Appearance Settings", padding="5")
+        settings_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        
+        # Color settings
+        color_frame = ttk.Frame(settings_frame)
+        color_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Button(color_frame, text="Background Color", command=self.choose_bg_color).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(color_frame, text="Text Color", command=self.choose_text_color).pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Font size settings
+        font_frame = ttk.Frame(settings_frame)
+        font_frame.pack(fill=tk.X)
+        
+        ttk.Label(font_frame, text="Font Size:").pack(side=tk.LEFT)
+        self.font_size_var = tk.IntVar(value=self.font_size)
+        font_spinbox = ttk.Spinbox(
+            font_frame, 
+            from_=8, 
+            to=32, 
+            textvariable=self.font_size_var,
+            width=5,
+            command=self.update_font_size
+        )
+        font_spinbox.pack(side=tk.LEFT, padx=(5, 10))
+        
+        # Font family dropdown
+        ttk.Label(font_frame, text="Font:").pack(side=tk.LEFT)
+        self.font_family_var = tk.StringVar(value=self.font_family)
+        font_combo = ttk.Combobox(
+            font_frame,
+            textvariable=self.font_family_var,
+            values=["Consolas", "Arial", "Times New Roman", "Courier New", "Verdana", "Georgia"],
+            width=12,
+            state="readonly"
+        )
+        font_combo.pack(side=tk.LEFT, padx=(5, 10))
+        font_combo.bind('<<ComboboxSelected>>', self.update_font_family)
+        
+        ttk.Button(font_frame, text="Apply", command=self.apply_appearance_settings).pack(side=tk.RIGHT)
+        
         # Text area
         text_frame = ttk.Frame(main_frame)
-        text_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
+        text_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
         text_frame.columnconfigure(0, weight=1)
         text_frame.rowconfigure(0, weight=1)
         
@@ -125,9 +176,9 @@ class CollaborativeTextEditor:
         self.text_widget = tk.Text(
             text_frame,
             wrap=tk.WORD,
-            font=("Consolas", 12),
-            bg="white",
-            fg="black"
+            font=(self.font_family, self.font_size),
+            bg=self.bg_color,
+            fg=self.text_color
         )
         
         scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self.text_widget.yview)
@@ -141,7 +192,7 @@ class CollaborativeTextEditor:
         
         # Buttons frame
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 0))
+        button_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 0))
         
         ttk.Button(button_frame, text="Save to File", command=self.save_to_file).pack(side=tk.LEFT)
         ttk.Button(button_frame, text="Load from File", command=self.load_from_file).pack(side=tk.LEFT, padx=(5, 0))
@@ -159,6 +210,88 @@ class CollaborativeTextEditor:
             messagebox.showinfo("User ID", f"User ID set to: {self.user_id}")
         else:
             messagebox.showerror("Error", "User ID cannot be empty")
+    
+    def choose_bg_color(self):
+        """Choose background color"""
+        color = colorchooser.askcolor(title="Choose Background Color", color=self.bg_color)
+        if color[1]:  # color[1] contains the hex color string
+            self.bg_color = color[1]
+            self.apply_appearance_settings()
+    
+    def choose_text_color(self):
+        """Choose text color"""
+        color = colorchooser.askcolor(title="Choose Text Color", color=self.text_color)
+        if color[1]:  # color[1] contains the hex color string
+            self.text_color = color[1]
+            self.apply_appearance_settings()
+    
+    def update_font_size(self):
+        """Update font size from spinbox"""
+        self.font_size = self.font_size_var.get()
+        self.apply_appearance_settings()
+    
+    def update_font_family(self, event=None):
+        """Update font family from combobox"""
+        self.font_family = self.font_family_var.get()
+        self.apply_appearance_settings()
+    
+    def apply_appearance_settings(self):
+        """Apply current appearance settings to the text widget"""
+        try:
+            # Update text widget appearance
+            self.text_widget.configure(
+                font=(self.font_family, self.font_size),
+                bg=self.bg_color,
+                fg=self.text_color
+            )
+            
+            # Update highlight tag colors to work with new background
+            if self.bg_color == "#000000" or self.bg_color.lower() == "black":
+                # Dark theme - use lighter highlight colors
+                self.text_widget.tag_configure("other_user", background="#404040")
+                self.text_widget.tag_configure("my_change", background="#006400")
+            else:
+                # Light theme - use standard highlight colors
+                self.text_widget.tag_configure("other_user", background="lightblue")
+                self.text_widget.tag_configure("my_change", background="lightgreen")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to apply appearance settings: {e}")
+        
+        # Save preferences after applying
+        self.save_preferences()
+    
+    def save_preferences(self):
+        """Save appearance preferences to a file"""
+        try:
+            preferences = {
+                "bg_color": self.bg_color,
+                "text_color": self.text_color,
+                "font_size": self.font_size,
+                "font_family": self.font_family
+            }
+            
+            with open("editor_preferences.json", "w") as f:
+                json.dump(preferences, f, indent=2)
+                
+        except Exception as e:
+            print(f"Failed to save preferences: {e}")
+    
+    def load_preferences(self):
+        """Load appearance preferences from file"""
+        try:
+            if os.path.exists("editor_preferences.json"):
+                with open("editor_preferences.json", "r") as f:
+                    preferences = json.load(f)
+                
+                self.bg_color = preferences.get("bg_color", "white")
+                self.text_color = preferences.get("text_color", "black")
+                self.font_size = preferences.get("font_size", 12)
+                self.font_family = preferences.get("font_family", "Consolas")
+                
+        except Exception as e:
+            print(f"Failed to load preferences: {e}")
+            # Use defaults if loading fails
     
     def connect_to_server(self):
         """Connect to the WebSocket server"""
